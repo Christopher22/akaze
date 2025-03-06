@@ -1,0 +1,19 @@
+{
+	"name": "Rust",
+	"image": "mcr.microsoft.com/devcontainers/base:bullseye",
+	"features": {
+		"ghcr.io/devcontainers/features/rust:1": {
+			"version": "latest",
+			"profile": "default"
+		}
+	},
+	"customizations": {
+		"vscode": {
+			"settings": {},
+			"extensions": [
+				"tamasfe.even-better-toml",
+				"fill-labs.dependi"
+			]
+		}
+	}
+}
