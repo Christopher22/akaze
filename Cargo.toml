@@ -1,6 +1,6 @@
 [package]
 name = "akaze"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Geordon Worley <vadixidav@gmail.com>"]
 edition = "2018"
 description = "AKAZE feature extraction algorithm for computer vision"
@@ -12,29 +12,28 @@ license = "MIT"
 readme = "README.md"
 
 [dependencies]
-cv-core = "0.15.0"
-image = { version = "0.23.6", default-features = false }
+cv-core = "0.15"
+image = { version = "0.25", default-features = false }
 log = { version = "0.4.8", default-features = false }
 primal = { version = "0.3.0", default-features = false }
-derive_more = { version = "0.99.8", default-features = false }
-nshare = { version = "0.1.1", features = ["ndarray", "image"] }
-ndarray = { version = "0.13.1", default-features = false }
-float-ord = { version = "0.2.0", default-features = false }
-space = "0.10.3"
-bitarray = "0.2.3"
+derive_more = { version = "2.0", default-features = false, features = ["deref", "deref_mut"] }
+nshare = { version = "0.10", features = ["ndarray", "image"] }
+ndarray = { version = "0.16", default-features = false }
+float-ord = { version = "0.3", default-features = false }
+space = "0.18"
+bitarray = "0.10"
 
 
 [dev-dependencies]
 eight-point = "0.8.0"
 cv-pinhole = "0.6.0"
-arrsac = "0.5.0"
-space = "0.10.3"
-rand = "0.7.3"
-rand_pcg = "0.2.1"
-criterion = "0.3.2"
-pretty_env_logger = "0.4.0"
-image = "0.23.6"
-bitarray = { version = "0.2.3", features = ["space"] }
+arrsac = "0.10"
+space = "0.18"
+old_rand = { package = "rand", version = "0.8.4" } # Match the arrsac crate
+criterion = "0.5"
+pretty_env_logger = "0.5"
+image = "0.25"
+bitarray = { version = "0.10", features = ["space"] }
 
 [[bench]]
 name = "criterion"

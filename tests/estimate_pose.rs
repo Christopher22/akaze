@@ -1,12 +1,13 @@
 use akaze::Akaze;
 use arrsac::Arrsac;
-use bitarray::BitArray;
+use bitarray::{BitArray, Hamming};
 use cv_core::nalgebra::{Point2, Vector2};
 use cv_core::sample_consensus::Consensus;
 use cv_core::{CameraModel, FeatureMatch};
 use log::*;
-use rand::SeedableRng;
-use rand_pcg::Pcg64;
+use old_rand::rngs::StdRng;
+use old_rand::SeedableRng;
+use space::{Knn, KnnFromMetricAndBatch, LinearKnn};
 use std::path::Path;
 
 const LOWES_RATIO: f32 = 0.5;
@@ -53,11 +54,12 @@ fn estimate_pose() {
         })
         .collect();
     info!("Finished matching with {} matches", matches.len());
-    assert_eq!(matches.len(), 35);
+    assert_eq!(matches.len(), 30);
 
     // Run ARRSAC with the eight-point algorithm.
     info!("Running ARRSAC");
-    let mut arrsac = Arrsac::new(0.001, Pcg64::from_seed([1; 32]));
+
+    let mut arrsac = Arrsac::new(0.001, StdRng::from_seed([1; 32]));
     let eight_point = eight_point::EightPoint::new();
     let (_, inliers) = arrsac
         .model_inliers(&eight_point, matches.iter().copied())
@@ -69,27 +71,47 @@ fn estimate_pose() {
     );
 
     // Ensures the underlying algorithms don't change at all.
-    assert_eq!(inliers.len(), 35);
+    assert_eq!(inliers.len(), 30);
 }
 
-fn match_descriptors(ds1: &[Descriptor], ds2: &[Descriptor]) -> Vec<(usize, usize)> {
-    use space::Neighbor;
-    let two_neighbors = ds1
-        .iter()
-        .map(|d1| {
-            let mut neighbors = [Neighbor::invalid(); 2];
-            assert_eq!(
-                space::linear_knn(d1, &mut neighbors, ds2).len(),
-                2,
-                "there should be at least two matches"
-            );
-            neighbors
+fn match_descriptors(a: &[BitArray<64>], b: &[BitArray<64>]) -> Vec<(usize, usize)> {
+    // The best match for each feature in frame a to frame b's features.
+    let forward_matches = matching(a, b);
+    // The best match for each feature in frame b to frame a's features.
+    let reverse_matches = matching(b, a);
+    forward_matches
+        .into_iter()
+        .enumerate()
+        .filter_map(move |(aix, bix)| {
+            // First we only proceed if there was a sufficient bix match.
+            // Filter out matches which are not symmetric.
+            // Symmetric is defined as the best and sufficient match of a being b,
+            // and likewise the best and sufficient match of b being a.
+            bix.map(|bix| [aix, bix])
+                .filter(|&[aix, bix]| reverse_matches[bix] == Some(aix))
         })
-        .enumerate();
-    let satisfies_lowes_ratio = two_neighbors.filter(|(_, neighbors)| {
-        (neighbors[0].distance as f32) < neighbors[1].distance as f32 * LOWES_RATIO
-    });
-    satisfies_lowes_ratio
-        .map(|(ix1, neighbors)| (ix1, neighbors[0].index))
+        .map(|[aix, bix]| (aix, bix))
+        .collect()
+}
+
+fn matching(a_descriptors: &[Descriptor], b_descriptors: &[Descriptor]) -> Vec<Option<usize>> {
+    let points: Vec<_> = b_descriptors
+        .iter()
+        .enumerate()
+        .map(|(i, x)| (x.clone(), i))
+        .collect();
+    let knn_b = LinearKnn::from_metric_and_batch(Hamming, points.iter());
+
+    (0..a_descriptors.len())
+        .map(|a_feature| {
+            let knn = knn_b.knn(&a_descriptors[a_feature], 2);
+            if (knn[0].0.distance + 24 < knn[1].0.distance)
+                && (knn[0].0.distance as f32) < knn[1].0.distance as f32 * LOWES_RATIO
+            {
+                Some(knn[0].0.index)
+            } else {
+                None
+            }
+        })
         .collect()
 }
